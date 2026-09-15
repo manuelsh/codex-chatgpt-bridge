@@ -34,6 +34,8 @@ The selector button displayed `6 Pro`; its menu also showed `Power` with `Pro, 5
 
 Default-headless retest: invoked `ask` without a headless flag, requesting `GPT-5.6 Sol`. The editor did not appear within 30 seconds; the command returned `BROWSER_NOT_READY` before sending. The requested default remains headless, despite this local compatibility limitation. Build and all four local tests pass.
 
+Diagnosis: the same dedicated profile returned HTTP 403 and a Cloudflare `Just a moment...` verification page in headless Chrome, while visible Chrome returned HTTP 200 with the editor available. A verification-domain request also failed DNS resolution in Chrome; a subsequent OS DNS check resolved the domain. This does not establish a permanent DNS fault. The bridge now rejects verification/403 and rate-limit/429 responses immediately, rather than waiting for a nonexistent editor. It does not bypass the site's checks. Headless remains the requested default; use `--headless false` for the verified working mode. This improves error handling but does not make headless compatible with the site's verification.
+
 [![Status](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](./package.json)

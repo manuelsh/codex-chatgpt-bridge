@@ -4,6 +4,7 @@ import { browserProfileDir, ensureStateDirs, jobsDir, responsesDir, writeJson, w
 import { formatDelegationResponse, parseDelegationResponse } from "../response.js";
 import type { BridgeAdapter, BridgeResult, Job } from "../types.js";
 import { verifyModel } from "./model.js";
+import { checkNavigation } from "./navigation.js";
 
 type PlaywrightOptions = {
   channel?: string;
@@ -167,7 +168,8 @@ async function launchChatGptContext(options: PlaywrightOptions): Promise<Browser
 async function openChatGpt(context: BrowserContext, options: PlaywrightOptions = {}): Promise<Page> {
   const timeoutMs = options.timeoutMs ?? 120_000;
   const page = context.pages()[0] ?? (await context.newPage());
-  await page.goto(options.projectUrl ?? chatGptUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+  const navigation = await page.goto(options.projectUrl ?? chatGptUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+  checkNavigation(navigation?.status(), await page.title(), options.headless ?? true);
   try { await waitForPromptEditor(page, timeoutMs); }
   catch {
     throw new Error(`BROWSER_NOT_READY: ChatGPT editor unavailable${options.headless ? " in headless mode" : ""}. Check login, verification or limits in visible Chrome. No prompt was sent.`);

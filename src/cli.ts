@@ -84,7 +84,7 @@ async function createAdapter(args: Args): Promise<BridgeAdapter> {
   const minimized = "minimized" in args ? boolArg(args, "minimized") : undefined;
   if (minimized && boolArg(args, "headless")) throw new Error("Use --minimized without --headless true.");
   if (adapter === "manual") {
-    if (textArg(args, "model") || boolArg(args, "headless") || minimized) throw new Error("Browser options require --adapter playwright.");
+    if ("model" in args || "headless" in args || "minimized" in args) throw new Error("Browser options require --adapter playwright.");
     return new ManualBridgeAdapter();
   }
   return new PlaywrightBridgeAdapter({

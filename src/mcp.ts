@@ -91,7 +91,7 @@ async function createAdapter(
   }
 ): Promise<BridgeAdapter> {
   if (adapter === "manual") {
-    if (options.model || options.headless || options.minimized) throw new Error("Browser options require the playwright adapter.");
+    if (options.model !== undefined || options.headless !== undefined || options.minimized !== undefined) throw new Error("Browser options require the playwright adapter.");
     return new ManualBridgeAdapter();
   }
   const config = await readConfig();

@@ -12,13 +12,27 @@ node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --headless --q
 - `--model` requests an **exact label** in the web model menu. No API aliases. Auto/Latest are rejected because they do not identify a fixed model. The current English model submenu is supported; other layouts can fail closed.
 - Selection is checked using the menu's `aria-checked` state before sending and after receiving. Unavailable, ambiguous or unverifiable models produce `MODEL_UNVERIFIABLE`, with no automatic substitution. This confirms the web selection, not an independently verified backend model identity. A post-send verification failure means the request may already have run; do not retry blindly.
 - Without `--model`, the browser default is used and explicitly reported as unverified.
-- `--headless` runs without a window; default is visible. Login remains interactive and rejects `--headless`. Both modes use the same dedicated profile. No automatic visible-mode fallback, session copying or automation-concealment flags.
-- MCP `chatgpt_delegate` also accepts optional `model` and `headless` (default false). Both options require the Playwright adapter. No new environment variables or config files.
+- Playwright runs headless by default. Use `--headless false` for a visible window; `--headless` or `--headless true` explicitly requests no window. Login remains visible and rejects `--headless true`. Both modes use the same dedicated profile. No automatic visible-mode fallback, session copying or automation-concealment flags.
+- MCP `chatgpt_delegate` also accepts optional `model` and `headless` (Playwright default true; use false for a window). Both options require the Playwright adapter. No new environment variables or config files.
 - Run one command at a time. If login, verification or limits block a run, use visible Chrome to resolve them manually. A response timeout is an error, even if partial text exists.
 - The bridge retains upstream's local prompt/response storage. Never commit `.cgpt` or the dedicated browser profile.
 - Tests require installed Chrome (or `CGPT_BROWSER_CHANNEL=msedge`) for the local model-selector fixture.
 
-Verified on 2026-09-15: a real Chrome run selected and checked `GPT-5.6 Sol` before and after a harmless structured query, and retrieved the response successfully. The same headless test timed out before the prompt editor became available; no prompt was sent. **Headless compatibility with ChatGPT is not verified in this environment.** Use visible mode for now. No challenge was bypassed and the cause of the unavailable editor was not established. The four local tests and TypeScript build passed. Other model labels, translated menus and Project-specific selectors remain unverified.
+Verified on 2026-09-15: a real Chrome run selected and checked `GPT-5.6 Sol` before and after a harmless structured query, and retrieved the response successfully. The same headless test timed out before the prompt editor became available; no prompt was sent. **Headless compatibility with ChatGPT is not verified in this environment.** If needed, explicitly use `--headless false`. No challenge was bypassed and the cause of the unavailable editor was not established. The four local tests and TypeScript build passed. Other model labels, translated menus and Project-specific selectors remain unverified.
+
+### Observed model menu (2026-09-15)
+
+Snapshot from the dedicated Chrome profile; options can vary with account and rollout:
+
+| Visible option | State / note |
+| --- | --- |
+| Latest | Selected during inspection; dynamic alias, rejected by explicit-model verification |
+| GPT-5.6 Sol | Available; exact label supported and previously tested end to end |
+| GPT-5.5 | Available, with `Leaving on October 14`; full accessible label is `GPT-5.5 Leaving on October 14`, not yet tested |
+
+The selector button displayed `6 Pro`; its menu also showed `Power` with `Pro, 5 of 5`. These are displayed controls, not additional fixed model labels. `GPT-5.6 Luna` was absent. No broader availability claim is made.
+
+Default-headless retest: invoked `ask` without a headless flag, requesting `GPT-5.6 Sol`. The editor did not appear within 30 seconds; the command returned `BROWSER_NOT_READY` before sending. The requested default remains headless, despite this local compatibility limitation. Build and all four local tests pass.
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)

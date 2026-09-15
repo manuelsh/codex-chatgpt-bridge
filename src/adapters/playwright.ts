@@ -55,7 +55,7 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
 export async function loginWithPlaywright(options: PlaywrightOptions = {}): Promise<void> {
   if (options.headless) throw new Error("Login requires a visible browser. Remove --headless.");
   await ensureStateDirs();
-  const context = await launchChatGptContext(options);
+  const context = await launchChatGptContext({ ...options, headless: false });
   try {
     const page = context.pages()[0] ?? (await context.newPage());
     await page.goto(options.projectUrl ?? chatGptUrl, {
@@ -158,7 +158,7 @@ async function launchChatGptContext(options: PlaywrightOptions): Promise<Browser
   const timeout = options.timeoutMs ?? 120_000;
   return chromium.launchPersistentContext(browserProfileDir, {
     channel: options.channel ?? process.env.CGPT_BROWSER_CHANNEL ?? "chrome",
-    headless: options.headless ?? false,
+    headless: options.headless ?? true,
     timeout,
     viewport: { width: 1280, height: 900 }
   });

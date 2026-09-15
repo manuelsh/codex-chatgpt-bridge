@@ -33,7 +33,7 @@ server.registerTool(
       projectName: z.string().optional(),
       channel: z.string().optional(),
       model: z.string().min(1).optional(),
-      headless: z.boolean().default(false),
+      headless: z.boolean().optional().describe("Playwright defaults to true; set false for a visible browser."),
       timeoutMs: z.number().positive().optional()
     }
   },

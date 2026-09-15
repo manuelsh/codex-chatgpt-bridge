@@ -47,6 +47,13 @@ function boolArg(args: Args, name: string): boolean {
   return args[name] === true || args[name] === "true";
 }
 
+function headlessArg(args: Args): boolean {
+  if (!("headless" in args)) return true;
+  if (args.headless === true || args.headless === "true") return true;
+  if (args.headless === "false") return false;
+  throw new Error("--headless expects true or false.");
+}
+
 function numberArg(args: Args, name: string, fallback: number): number {
   const value = textArg(args, name);
   if (!value) return fallback;
@@ -80,7 +87,7 @@ async function createAdapter(args: Args): Promise<BridgeAdapter> {
   }
   return new PlaywrightBridgeAdapter({
     channel: textArg(args, "channel"),
-    headless: boolArg(args, "headless"),
+    headless: headlessArg(args),
     model: textArg(args, "model"),
     timeoutMs: numberArg(args, "timeout-ms", 180_000),
     projectUrl: await resolveProjectUrl(args),
@@ -200,7 +207,7 @@ async function commandDoctor(args: Args): Promise<void> {
     try {
       const result = await checkChatGptReady({
         channel: textArg(args, "channel"),
-        headless: boolArg(args, "headless"),
+        headless: headlessArg(args),
         timeoutMs: numberArg(args, "timeout-ms", 120_000),
         projectUrl: await resolveProjectUrl(args),
         projectName: await resolveProjectName(args)
@@ -223,7 +230,7 @@ async function commandDoctor(args: Args): Promise<void> {
 }
 
 function printHelp(): void {
-  console.log("Playwright ask options: --model <exact UI label> --headless (default: visible). Login always requires a visible browser.");
+  console.log("Playwright options: --model <exact UI label> --headless true|false (default: true). Login always uses a visible browser.");
   console.log(`cgpt commands:
   login [--channel chrome|msedge] [--project-url <url>] [--timeout-ms <number>]
   project-set (--url <chatgpt-project-url>|--name <project-name>)
@@ -278,7 +285,7 @@ async function main(): Promise<void> {
   if (command === "debug-page") {
     return debugChatGptPage({
       channel: textArg(args, "channel"),
-      headless: boolArg(args, "headless"),
+      headless: headlessArg(args),
       timeoutMs: numberArg(args, "timeout-ms", 120_000),
       projectUrl: await resolveProjectUrl(args),
       projectName: await resolveProjectName(args),
@@ -288,7 +295,7 @@ async function main(): Promise<void> {
   if (command === "debug-submit") {
     return debugSubmitPrompt(textArg(args, "text") ?? "hello", {
       channel: textArg(args, "channel"),
-      headless: boolArg(args, "headless"),
+      headless: headlessArg(args),
       timeoutMs: numberArg(args, "timeout-ms", 120_000),
       unsafeDebug: boolArg(args, "unsafe-debug")
     });

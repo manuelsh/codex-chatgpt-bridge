@@ -57,7 +57,7 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
 export async function loginWithPlaywright(options: PlaywrightOptions = {}): Promise<void> {
   if (options.headless) throw new Error("Login requires a visible browser. Remove --headless.");
   await ensureStateDirs();
-  const context = await launchChatGptContext({ ...options, headless: false });
+  const context = await launchChatGptContext({ ...options, headless: false, minimized: false });
   try {
     const page = context.pages()[0] ?? (await context.newPage());
     await page.goto(options.projectUrl ?? chatGptUrl, {
@@ -159,14 +159,16 @@ async function persistJob(job: Job): Promise<void> {
 async function launchChatGptContext(options: PlaywrightOptions): Promise<BrowserContext> {
   const timeout = options.timeoutMs ?? 120_000;
   if (options.minimized && options.headless) throw new Error("minimized requires a headed browser; omit headless or set it to false.");
+  const headless = options.headless ?? false;
+  const minimized = options.minimized ?? !headless;
   const context = await chromium.launchPersistentContext(browserProfileDir, {
     channel: options.channel ?? process.env.CGPT_BROWSER_CHANNEL ?? "chrome",
-    headless: options.minimized ? false : options.headless ?? true,
+    headless,
     timeout,
     viewport: { width: 1280, height: 900 },
-    args: options.minimized ? ["--start-minimized"] : []
+    args: minimized ? ["--start-minimized"] : []
   });
-  if (options.minimized) {
+  if (minimized) {
     try {
       const page = context.pages()[0] ?? await context.newPage();
       const session = await context.newCDPSession(page);
@@ -184,7 +186,7 @@ async function openChatGpt(context: BrowserContext, options: PlaywrightOptions =
   const timeoutMs = options.timeoutMs ?? 120_000;
   const page = context.pages()[0] ?? (await context.newPage());
   const navigation = await page.goto(options.projectUrl ?? chatGptUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-  checkNavigation(navigation?.status(), await page.title(), options.minimized ? false : options.headless ?? true);
+  checkNavigation(navigation?.status(), await page.title(), options.headless ?? false);
   try { await waitForPromptEditor(page, timeoutMs); }
   catch {
     throw new Error(`BROWSER_NOT_READY: ChatGPT editor unavailable${options.headless ? " in headless mode" : ""}. Check login, verification or limits in visible Chrome. No prompt was sent.`);

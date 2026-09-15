@@ -33,8 +33,8 @@ server.registerTool(
       projectName: z.string().optional(),
       channel: z.string().optional(),
       model: z.string().min(1).optional(),
-      headless: z.boolean().optional().describe("Playwright defaults to true; set false for a visible browser."),
-      minimized: z.boolean().optional().describe("Use normal Chrome minimized, not headless. Do not combine with headless true."),
+      headless: z.boolean().optional().describe("Defaults to false. Experimental headless is currently blocked by ChatGPT verification."),
+      minimized: z.boolean().optional().describe("Defaults to true unless headless is true. Set false for a visible window. Do not combine true with headless true."),
       timeoutMs: z.number().positive().optional()
     }
   },

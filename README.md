@@ -10,9 +10,18 @@ Working background alternative on Windows:
 node .\dist\cli.js ask --adapter playwright --minimized --model "GPT-5.6 Sol" --question "Use the required structure and summarize 2 + 2."
 ```
 
-`--minimized` starts normal Chrome minimized and verifies the window state using Chrome's protocol. This is **not headless**. It overrides the implicit headless default, but explicitly combining `--minimized --headless true` is rejected. MCP supports `minimized: true` with `headless` omitted or false. Login stays visible. A window may briefly appear during startup or site prompts; restore it manually if interaction is required. No hidden fallback occurs.
+Normal Chrome minimized is now the default for Playwright CLI/MCP runs. The window state is verified using Chrome's protocol. This is **not headless**. No window flags are needed. Use `ask --minimized false` (MCP `minimized: false`) for a visible window. Explicit `--headless true` remains experimental; combining it with `--minimized true` is rejected. Login always stays visible. A window may briefly appear during startup or site prompts; restore it manually if interaction is required.
 
-Verified 2026-09-15: minimized Chrome returned HTTP 200, reported `windowState: minimized`, and completed a real structured query with GPT-5.6 Sol verified before/after submission. Native Chrome invoked directly with `--headless --dump-dom`, without Playwright, returned `Just a moment...` and no editor using the same dedicated profile. Thus the observed headless failure is reproducible without Playwright; switching libraries alone has no demonstrated benefit. Puppeteer/Selenium were not installed or claimed tested.
+Verified 2026-09-15: minimized Chrome returned HTTP 200, reported `windowState: minimized`, and completed a real structured query with GPT-5.6 Sol verified before/after submission. Native Chrome invoked directly with `--headless --dump-dom`, without Playwright, returned `Just a moment...` and no editor using the same dedicated profile. Thus the observed headless failure is reproducible without Playwright.
+
+Additional headless comparison (same dedicated profile, Chrome 152.0.7977.84, sequential runs with each browser closed before the next):
+
+| Framework | Version | Observed result | Prompt sent |
+| --- | --- | --- | --- |
+| Puppeteer Core | 25.11.0 | HTTP 403, no editor (about 3.8 seconds); title was empty at inspection | No |
+| Selenium WebDriver | 4.49.0 | `Just a moment...` verification page, no editor (about 7.2 seconds); HTTP status not captured | No |
+
+These are navigation diagnostics, not successful end-to-end tests. Both used documented headless launch settings, without stealth plugins, fingerprint changes or challenge interaction. Temporary dependencies and probes remain in ignored `.cgpt/framework-test/`; the bridge dependencies were not changed. Neither alternative improved access in this comparison; this is not a claim about every possible configuration or future version.
 
 Research references:
 
@@ -28,8 +37,8 @@ node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --headless --q
 - `--model` requests an **exact label** in the web model menu. No API aliases. Auto/Latest are rejected because they do not identify a fixed model. The current English model submenu is supported; other layouts can fail closed.
 - Selection is checked using the menu's `aria-checked` state before sending and after receiving. Unavailable, ambiguous or unverifiable models produce `MODEL_UNVERIFIABLE`, with no automatic substitution. This confirms the web selection, not an independently verified backend model identity. A post-send verification failure means the request may already have run; do not retry blindly.
 - Without `--model`, the browser default is used and explicitly reported as unverified.
-- Playwright runs headless by default. Use `--headless false` for a visible window; `--headless` or `--headless true` explicitly requests no window. Login remains visible and rejects `--headless true`. Both modes use the same dedicated profile. No automatic visible-mode fallback, session copying or automation-concealment flags.
-- MCP `chatgpt_delegate` also accepts optional `model` and `headless` (Playwright default true; use false for a window). Both options require the Playwright adapter. No new environment variables or config files.
+- Playwright defaults to `headless: false`, `minimized: true`. Login remains visible and rejects `--headless true`. All modes use the same dedicated profile, without session copying or automation-concealment flags.
+- MCP `chatgpt_delegate` accepts optional `model`, `headless` and `minimized` with the same defaults. Browser options require the Playwright adapter. No new environment variables or config files.
 - Run one command at a time. If login, verification or limits block a run, use visible Chrome to resolve them manually. A response timeout is an error, even if partial text exists.
 - The bridge retains upstream's local prompt/response storage. Never commit `.cgpt` or the dedicated browser profile.
 - Tests require installed Chrome (or `CGPT_BROWSER_CHANNEL=msedge`) for the local model-selector fixture.
@@ -48,9 +57,9 @@ Snapshot from the dedicated Chrome profile; options can vary with account and ro
 
 The selector button displayed `6 Pro`; its menu also showed `Power` with `Pro, 5 of 5`. These are displayed controls, not additional fixed model labels. `GPT-5.6 Luna` was absent. No broader availability claim is made.
 
-Default-headless retest: invoked `ask` without a headless flag, requesting `GPT-5.6 Sol`. The editor did not appear within 30 seconds; the command returned `BROWSER_NOT_READY` before sending. The requested default remains headless, despite this local compatibility limitation. Build and all four local tests pass.
+Historical headless retest: with the former headless default, the editor did not appear within 30 seconds; the command returned `BROWSER_NOT_READY` before sending. The default has since been changed to normal Chrome minimized.
 
-Diagnosis: the same dedicated profile returned HTTP 403 and a Cloudflare `Just a moment...` verification page in headless Chrome, while visible Chrome returned HTTP 200 with the editor available. A verification-domain request also failed DNS resolution in Chrome; a subsequent OS DNS check resolved the domain. This does not establish a permanent DNS fault. The bridge now rejects verification/403 and rate-limit/429 responses immediately, rather than waiting for a nonexistent editor. It does not bypass the site's checks. Headless remains the requested default; use `--headless false` for the verified working mode. This improves error handling but does not make headless compatible with the site's verification.
+Diagnosis: the same dedicated profile returned HTTP 403 and a Cloudflare `Just a moment...` verification page in headless Chrome, while visible Chrome returned HTTP 200 with the editor available. A verification-domain request also failed DNS resolution in Chrome; a subsequent OS DNS check resolved the domain. This does not establish a permanent DNS fault. The bridge now rejects verification/403 and rate-limit/429 responses immediately. The default is normal Chrome minimized; headless compatibility remains unresolved.
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)

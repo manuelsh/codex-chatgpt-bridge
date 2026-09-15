@@ -5,12 +5,14 @@ import { formatDelegationResponse, parseDelegationResponse } from "../response.j
 import type { BridgeAdapter, BridgeResult, Job } from "../types.js";
 import { verifyModel } from "./model.js";
 import { checkNavigation } from "./navigation.js";
+import { verifyPower } from "./power.js";
 
 type PlaywrightOptions = {
   channel?: string;
   headless?: boolean;
   minimized?: boolean;
   model?: string;
+  power?: number;
   timeoutMs?: number;
   projectUrl?: string;
   projectName?: string;
@@ -23,17 +25,26 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
   constructor(private readonly options: PlaywrightOptions = {}) {}
 
   async submit(job: Job): Promise<BridgeResult> {
+    if (this.options.power !== undefined && (this.options.model !== "Latest" || !Number.isInteger(this.options.power) || this.options.power < 1 || this.options.power > 5)) {
+      throw new Error("Power requires --model Latest and an integer from 1 to 5.");
+    }
     await ensureStateDirs();
     await persistJob(job);
 
     const context = await launchChatGptContext(this.options);
     try {
       const page = await openChatGpt(context, this.options);
-      if (this.options.model) await verifyModel(page, this.options.model, true);
+      let selection = this.options.model ? await verifyModel(page, this.options.model, true) : undefined;
+      const power = this.options.power !== undefined ? await verifyPower(page, this.options.power, true) : undefined;
+      if (power) selection = await verifyModel(page, "Latest");
       await submitPrompt(page, job.prompt, this.options.timeoutMs);
       const response = await waitForLatestAssistantText(page, this.options.timeoutMs);
       if (this.options.model) {
-        try { await verifyModel(page, this.options.model); }
+        try {
+          const confirmed = await verifyModel(page, this.options.model);
+          if (confirmed.displayLabel !== selection?.displayLabel) throw new Error("MODEL_UNVERIFIABLE: model display label changed during the request.");
+          if (power) await verifyPower(page, power.level);
+        }
         catch (error) { throw new Error(`Request was already sent; do not retry automatically. ${error instanceof Error ? error.message : String(error)}`); }
       }
       const parsed = parseDelegationResponse(response);
@@ -46,6 +57,9 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
         status: "done",
         response: normalizedResponse,
         verifiedModel: this.options.model,
+        modelDisplay: selection?.displayLabel,
+        power: power?.level,
+        powerLabel: power?.label,
         responsePath
       };
     } finally {

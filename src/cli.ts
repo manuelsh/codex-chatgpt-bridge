@@ -80,11 +80,13 @@ async function resolveProjectName(args: Args): Promise<string | undefined> {
 
 async function createAdapter(args: Args): Promise<BridgeAdapter> {
   if ("model" in args && !textArg(args, "model")?.trim()) throw new Error("--model requires an explicit non-empty UI label.");
+  const power = "power" in args ? Number(textArg(args, "power")) : undefined;
+  if (power !== undefined && (textArg(args, "model") !== "Latest" || !Number.isInteger(power) || power < 1 || power > 5)) throw new Error("--power requires --model Latest and an integer from 1 to 5.");
   const adapter = adapterName(args);
   const minimized = "minimized" in args ? boolArg(args, "minimized") : undefined;
   if (minimized && boolArg(args, "headless")) throw new Error("Use --minimized without --headless true.");
   if (adapter === "manual") {
-    if ("model" in args || "headless" in args || "minimized" in args) throw new Error("Browser options require --adapter playwright.");
+    if ("model" in args || "power" in args || "headless" in args || "minimized" in args) throw new Error("Browser options require --adapter playwright.");
     return new ManualBridgeAdapter();
   }
   return new PlaywrightBridgeAdapter({
@@ -92,6 +94,7 @@ async function createAdapter(args: Args): Promise<BridgeAdapter> {
     headless: minimized ? false : headlessArg(args),
     minimized,
     model: textArg(args, "model"),
+    power,
     timeoutMs: numberArg(args, "timeout-ms", 180_000),
     projectUrl: await resolveProjectUrl(args),
     projectName: await resolveProjectName(args),
@@ -124,6 +127,8 @@ async function commandAsk(args: Args): Promise<void> {
   console.log(`prompt: ${path.join(jobsDir, `${job.id}.prompt.md`)}`);
   if (result.status === "done") {
     console.log(`model: ${result.verifiedModel ?? "browser default (not verified)"}`);
+    if (result.modelDisplay) console.log(`model_display: ${result.modelDisplay}`);
+    if (result.power !== undefined) console.log(`power: ${result.power} (${result.powerLabel})`);
     console.log(`response: ${result.responsePath}`);
     return;
   }
@@ -233,6 +238,7 @@ async function commandDoctor(args: Args): Promise<void> {
 }
 
 function printHelp(): void {
+  console.log("ask --model Latest [--power 1..5]: 1 Instant, 2 Medium, 3 High, 4 Extra High, 5 Pro. Omit power to keep the current setting.");
   console.log("Playwright defaults to normal Chrome minimized. Use ask --minimized false for a visible window or --headless true for experimental headless. Login always uses a visible browser.");
   console.log(`cgpt commands:
   login [--channel chrome|msedge] [--project-url <url>] [--timeout-ms <number>]

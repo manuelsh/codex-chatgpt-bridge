@@ -33,6 +33,7 @@ server.registerTool(
       projectName: z.string().optional(),
       channel: z.string().optional(),
       model: z.string().min(1).optional(),
+      power: z.number().int().min(1).max(5).optional().describe("Latest only: 1 Instant, 2 Medium, 3 High, 4 Extra High, 5 Pro."),
       headless: z.boolean().optional().describe("Defaults to false. Experimental headless is currently blocked by ChatGPT verification."),
       minimized: z.boolean().optional().describe("Defaults to true unless headless is true. Set false for a visible window. Do not combine true with headless true."),
       timeoutMs: z.number().positive().optional()
@@ -49,7 +50,7 @@ server.registerTool(
 
     const body =
       result.status === "done"
-        ? `job: ${result.jobId}\nmodel: ${result.verifiedModel ?? "browser default (not verified)"}\nresponse_path: ${result.responsePath}\n\n${result.response ?? ""}`
+        ? `job: ${result.jobId}\nmodel: ${result.verifiedModel ?? "browser default (not verified)"}\nmodel_display: ${result.modelDisplay ?? "not verified"}\npower: ${result.power !== undefined ? `${result.power} (${result.powerLabel})` : "unchanged (not verified)"}\nresponse_path: ${result.responsePath}\n\n${result.response ?? ""}`
         : [
             `job: ${result.jobId}`,
             `prompt_path: ${path.join(jobsDir, `${job.id}.prompt.md`)}`,
@@ -83,6 +84,7 @@ async function createAdapter(
   options: {
     channel?: string;
     model?: string;
+    power?: number;
     headless?: boolean;
     minimized?: boolean;
     timeoutMs?: number;
@@ -91,13 +93,14 @@ async function createAdapter(
   }
 ): Promise<BridgeAdapter> {
   if (adapter === "manual") {
-    if (options.model !== undefined || options.headless !== undefined || options.minimized !== undefined) throw new Error("Browser options require the playwright adapter.");
+    if (options.model !== undefined || options.power !== undefined || options.headless !== undefined || options.minimized !== undefined) throw new Error("Browser options require the playwright adapter.");
     return new ManualBridgeAdapter();
   }
   const config = await readConfig();
   return new PlaywrightBridgeAdapter({
     channel: options.channel,
     model: options.model,
+    power: options.power,
     headless: options.headless,
     minimized: options.minimized,
     timeoutMs: options.timeoutMs,

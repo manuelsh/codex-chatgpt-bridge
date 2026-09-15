@@ -1,9 +1,9 @@
 import type { Page } from "playwright-core";
 
 // Exact UI labels, never API aliases or a model's self-description.
-export async function verifyModel(page: Page, model: string, select = false): Promise<string> {
-  if (!model.trim() || /^(auto|latest)$/i.test(model.trim())) {
-    throw new Error("MODEL_UNVERIFIABLE: request an explicit model label, not Auto/Latest.");
+export async function verifyModel(page: Page, model: string, select = false): Promise<{ model: string; displayLabel: string }> {
+  if (!model.trim() || /^auto$/i.test(model.trim())) {
+    throw new Error("MODEL_UNVERIFIABLE: request a model menu label, such as Latest; Auto is not supported.");
   }
   const picker = page.locator('button.__composer-pill[aria-haspopup="menu"]')
     .or(page.getByTestId("model-switcher-dropdown-button")).filter({ visible: true });
@@ -31,7 +31,15 @@ export async function verifyModel(page: Page, model: string, select = false): Pr
     if (await choice.getAttribute("aria-checked") !== "true") {
       throw new Error(`The interface does not confirm ${JSON.stringify(model)} as selected.`);
     }
-    return model;
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => {
+      const button = document.querySelector('button.__composer-pill[aria-haspopup="menu"], [data-testid="model-switcher-dropdown-button"]');
+      const text = button?.textContent?.trim();
+      return text && text !== "Thinking effort";
+    }, undefined, { timeout: 5000 });
+    const displayLabel = (await picker.innerText()).replace(/\s+/g, " ").trim();
+    if (!displayLabel) throw new Error("The selected model's display label is empty.");
+    return { model, displayLabel };
   } catch (error) {
     throw new Error(`MODEL_UNVERIFIABLE: ${error instanceof Error ? error.message : String(error)}`);
   } finally {

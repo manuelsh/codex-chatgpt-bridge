@@ -1,66 +1,5 @@
 # codex-chatgpt-bridge
 
-Fork of [RPG-478/codex-chatgpt-bridge](https://github.com/RPG-478/codex-chatgpt-bridge), retaining its MIT license and attribution.
-
-## Fork options: model and headless
-
-Working background alternative on Windows:
-
-```powershell
-node .\dist\cli.js ask --adapter playwright --minimized --model "GPT-5.6 Sol" --question "Use the required structure and summarize 2 + 2."
-```
-
-Normal Chrome minimized is now the default for Playwright CLI/MCP runs. The window state is verified using Chrome's protocol. This is **not headless**. No window flags are needed. Use `ask --minimized false` (MCP `minimized: false`) for a visible window. Explicit `--headless true` remains experimental; combining it with `--minimized true` is rejected. Login always stays visible. A window may briefly appear during startup or site prompts; restore it manually if interaction is required.
-
-Verified 2026-09-15: minimized Chrome returned HTTP 200, reported `windowState: minimized`, and completed a real structured query with GPT-5.6 Sol verified before/after submission. Native Chrome invoked directly with `--headless --dump-dom`, without Playwright, returned `Just a moment...` and no editor using the same dedicated profile. Thus the observed headless failure is reproducible without Playwright.
-
-Additional headless comparison (same dedicated profile, Chrome 152.0.7977.84, sequential runs with each browser closed before the next):
-
-| Framework | Version | Observed result | Prompt sent |
-| --- | --- | --- | --- |
-| Puppeteer Core | 25.11.0 | HTTP 403, no editor (about 3.8 seconds); title was empty at inspection | No |
-| Selenium WebDriver | 4.49.0 | `Just a moment...` verification page, no editor (about 7.2 seconds); HTTP status not captured | No |
-
-These are navigation diagnostics, not successful end-to-end tests. Both used documented headless launch settings, without stealth plugins, fingerprint changes or challenge interaction. Temporary dependencies and probes remain in ignored `.cgpt/framework-test/`; the bridge dependencies were not changed. Neither alternative improved access in this comparison; this is not a claim about every possible configuration or future version.
-
-Research references:
-
-- [Chrome's unified headless mode](https://developer.chrome.com/docs/automation-and-testing/headless): modern Chrome shares headed/headless implementation; our installed Chrome 152 already uses this generation.
-- [Cloudflare supported browsers](https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/): automated production challenge solving is unsupported.
-- [Playwright CLI minimized-window request](https://github.com/microsoft/playwright-cli/issues/318): user report describing this practical alternative for ChatGPT; not a guarantee from maintainers.
-
-```powershell
-node .\dist\cli.js login --channel chrome
-node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --headless --question "Use the required response structure and summarize 2 + 2."
-```
-
-- `--model` requests an **exact label** in the web model menu. No API aliases. Auto/Latest are rejected because they do not identify a fixed model. The current English model submenu is supported; other layouts can fail closed.
-- Selection is checked using the menu's `aria-checked` state before sending and after receiving. Unavailable, ambiguous or unverifiable models produce `MODEL_UNVERIFIABLE`, with no automatic substitution. This confirms the web selection, not an independently verified backend model identity. A post-send verification failure means the request may already have run; do not retry blindly.
-- Without `--model`, the browser default is used and explicitly reported as unverified.
-- Playwright defaults to `headless: false`, `minimized: true`. Login remains visible and rejects `--headless true`. All modes use the same dedicated profile, without session copying or automation-concealment flags.
-- MCP `chatgpt_delegate` accepts optional `model`, `headless` and `minimized` with the same defaults. Browser options require the Playwright adapter. No new environment variables or config files.
-- Run one command at a time. If login, verification or limits block a run, use visible Chrome to resolve them manually. A response timeout is an error, even if partial text exists.
-- The bridge retains upstream's local prompt/response storage. Never commit `.cgpt` or the dedicated browser profile.
-- Tests require installed Chrome (or `CGPT_BROWSER_CHANNEL=msedge`) for the local model-selector fixture.
-
-Verified on 2026-09-15: a real Chrome run selected and checked `GPT-5.6 Sol` before and after a harmless structured query, and retrieved the response successfully. The same headless test timed out before the prompt editor became available; no prompt was sent. **Headless compatibility with ChatGPT is not verified in this environment.** If needed, explicitly use `--headless false`. No challenge was bypassed and the cause of the unavailable editor was not established. The four local tests and TypeScript build passed. Other model labels, translated menus and Project-specific selectors remain unverified.
-
-### Observed model menu (2026-09-15)
-
-Snapshot from the dedicated Chrome profile; options can vary with account and rollout:
-
-| Visible option | State / note |
-| --- | --- |
-| Latest | Selected during inspection; dynamic alias, rejected by explicit-model verification |
-| GPT-5.6 Sol | Available; exact label supported and previously tested end to end |
-| GPT-5.5 | Available, with `Leaving on October 14`; full accessible label is `GPT-5.5 Leaving on October 14`, not yet tested |
-
-The selector button displayed `6 Pro`; its menu also showed `Power` with `Pro, 5 of 5`. These are displayed controls, not additional fixed model labels. `GPT-5.6 Luna` was absent. No broader availability claim is made.
-
-Historical headless retest: with the former headless default, the editor did not appear within 30 seconds; the command returned `BROWSER_NOT_READY` before sending. The default has since been changed to normal Chrome minimized.
-
-Diagnosis: the same dedicated profile returned HTTP 403 and a Cloudflare `Just a moment...` verification page in headless Chrome, while visible Chrome returned HTTP 200 with the editor available. A verification-domain request also failed DNS resolution in Chrome; a subsequent OS DNS check resolved the domain. This does not establish a permanent DNS fault. The bridge now rejects verification/403 and rate-limit/429 responses immediately. The default is normal Chrome minimized; headless compatibility remains unresolved.
-
 [![Status](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](./package.json)
@@ -110,6 +49,8 @@ The goal is to reduce Codex context usage for compact second opinions without gi
 | --- | --- |
 | Manual prompt-packet workflow | Implemented |
 | Playwright ChatGPT Web delegation | Implemented |
+| Explicit model selection | Verified against the web menu before and after a request |
+| Background browser operation | Minimized Chrome by default; optional headless mode |
 | Dedicated ChatGPT Project targeting | Implemented by URL, with name fallback |
 | ChatGPT Project instructions template | Implemented |
 | Structured response validation | Implemented |
@@ -124,6 +65,8 @@ The goal is to reduce Codex context usage for compact second opinions without gi
 - Invalid ChatGPT response schemas currently fail fast; automatic repair retry is not implemented yet.
 - Context packets are not automatically redacted yet. Keep delegated context small and exclude secrets manually.
 - There is no Chrome extension adapter yet; Playwright is the only automated browser adapter.
+- Model selection depends on the web menu and currently supports its English model labels. It verifies the UI selection, not the backend model identity.
+- Headless mode may be blocked by ChatGPT verification. Minimized Chrome has been tested on Windows; other platforms and browser channels may behave differently.
 
 ## Install
 
@@ -140,7 +83,7 @@ Requirements:
 
 ## First Login
 
-Use a dedicated browser profile for the bridge:
+Use a dedicated browser profile for the bridge. Login always opens a visible window; complete any sign-in or verification manually:
 
 ```powershell
 node .\dist\cli.js login --channel chrome
@@ -220,6 +163,34 @@ Read a response:
 node .\dist\cli.js show --job <job-id>
 ```
 
+### Select a model
+
+Use the exact label shown in ChatGPT's model menu:
+
+```powershell
+node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --question "Summarize the main tradeoffs in this design."
+```
+
+The bridge checks the selected menu item before submitting and again after receiving the response. It fails if the requested model is unavailable or cannot be verified; it never substitutes another model. Dynamic labels such as `Auto` and `Latest` are not accepted as explicit model requests.
+
+Without `--model`, the browser's default selection is used and reported as unverified. Available labels depend on your account and the current ChatGPT interface.
+
+### Browser window options
+
+Playwright runs normal Chrome minimized by default, using the dedicated profile. No window flags are needed. Only run one command at a time against that profile.
+
+| Option for `ask` | Behavior |
+| --- | --- |
+| No window options | Normal Chrome, minimized |
+| `--minimized false` | Visible browser window |
+| `--headless true` | Experimental operation without a window |
+
+`--minimized true` and `--headless true` cannot be combined. Login always remains visible. A minimized window can briefly appear during startup or when the site requests interaction.
+
+If ChatGPT requires verification, restore the window or run `login` and complete it manually. The bridge stops on verification pages, HTTP errors and rate limits; it does not automatically switch modes or bypass these checks.
+
+A response timeout or a model-verification failure after submission can mean the request already ran. Check the chat before retrying. Partial responses are not reported as completed.
+
 ## Doctor
 
 Run local checks without sending a prompt to ChatGPT:
@@ -291,6 +262,16 @@ The server exposes:
 | `chatgpt_delegate` | Create a manual prompt packet or delegate directly through Playwright. |
 | `chatgpt_project_instructions` | Return the recommended ChatGPT Project instructions. |
 
+The Playwright adapter also accepts these optional fields in `chatgpt_delegate`:
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `model` | Browser selection, unverified | Exact web-menu label to select and verify |
+| `headless` | `false` | Request experimental headless operation |
+| `minimized` | `true` unless headless | Set `false` for a visible browser |
+
+These browser options require `adapter: "playwright"`. The manual adapter remains the default.
+
 ## Debugging
 
 Debug commands can expose account names, chat titles, project names, and page content. They are gated:
@@ -339,6 +320,8 @@ It tells Codex when to delegate, how to keep context small, and how to treat Cha
 npm run check
 npm test
 ```
+
+Tests include a local model-menu fixture and require Chrome, or Edge selected through `CGPT_BROWSER_CHANNEL=msedge`. They do not sign in to ChatGPT or send prompts.
 
 ## Roadmap
 

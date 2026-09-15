@@ -81,13 +81,16 @@ async function resolveProjectName(args: Args): Promise<string | undefined> {
 async function createAdapter(args: Args): Promise<BridgeAdapter> {
   if ("model" in args && !textArg(args, "model")?.trim()) throw new Error("--model requires an explicit non-empty UI label.");
   const adapter = adapterName(args);
+  const minimized = boolArg(args, "minimized");
+  if (minimized && boolArg(args, "headless")) throw new Error("Use --minimized without --headless true.");
   if (adapter === "manual") {
-    if (textArg(args, "model") || boolArg(args, "headless")) throw new Error("--model and --headless require --adapter playwright.");
+    if (textArg(args, "model") || boolArg(args, "headless") || minimized) throw new Error("Browser options require --adapter playwright.");
     return new ManualBridgeAdapter();
   }
   return new PlaywrightBridgeAdapter({
     channel: textArg(args, "channel"),
-    headless: headlessArg(args),
+    headless: minimized ? false : headlessArg(args),
+    minimized,
     model: textArg(args, "model"),
     timeoutMs: numberArg(args, "timeout-ms", 180_000),
     projectUrl: await resolveProjectUrl(args),
@@ -231,6 +234,7 @@ async function commandDoctor(args: Args): Promise<void> {
 
 function printHelp(): void {
   console.log("Playwright options: --model <exact UI label> --headless true|false (default: true). Login always uses a visible browser.");
+  console.log("ask --minimized uses normal Chrome minimized (not headless); incompatible with --headless true.");
   console.log(`cgpt commands:
   login [--channel chrome|msedge] [--project-url <url>] [--timeout-ms <number>]
   project-set (--url <chatgpt-project-url>|--name <project-name>)

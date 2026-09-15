@@ -34,6 +34,7 @@ server.registerTool(
       channel: z.string().optional(),
       model: z.string().min(1).optional(),
       headless: z.boolean().optional().describe("Playwright defaults to true; set false for a visible browser."),
+      minimized: z.boolean().optional().describe("Use normal Chrome minimized, not headless. Do not combine with headless true."),
       timeoutMs: z.number().positive().optional()
     }
   },
@@ -83,13 +84,14 @@ async function createAdapter(
     channel?: string;
     model?: string;
     headless?: boolean;
+    minimized?: boolean;
     timeoutMs?: number;
     projectUrl?: string;
     projectName?: string;
   }
 ): Promise<BridgeAdapter> {
   if (adapter === "manual") {
-    if (options.model || options.headless) throw new Error("model and headless require the playwright adapter.");
+    if (options.model || options.headless || options.minimized) throw new Error("Browser options require the playwright adapter.");
     return new ManualBridgeAdapter();
   }
   const config = await readConfig();
@@ -97,6 +99,7 @@ async function createAdapter(
     channel: options.channel,
     model: options.model,
     headless: options.headless,
+    minimized: options.minimized,
     timeoutMs: options.timeoutMs,
     projectUrl: options.projectUrl ?? config.projectUrl,
     projectName: options.projectName ?? config.projectName

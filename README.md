@@ -4,6 +4,22 @@ Fork of [RPG-478/codex-chatgpt-bridge](https://github.com/RPG-478/codex-chatgpt-
 
 ## Fork options: model and headless
 
+Working background alternative on Windows:
+
+```powershell
+node .\dist\cli.js ask --adapter playwright --minimized --model "GPT-5.6 Sol" --question "Use the required structure and summarize 2 + 2."
+```
+
+`--minimized` starts normal Chrome minimized and verifies the window state using Chrome's protocol. This is **not headless**. It overrides the implicit headless default, but explicitly combining `--minimized --headless true` is rejected. MCP supports `minimized: true` with `headless` omitted or false. Login stays visible. A window may briefly appear during startup or site prompts; restore it manually if interaction is required. No hidden fallback occurs.
+
+Verified 2026-09-15: minimized Chrome returned HTTP 200, reported `windowState: minimized`, and completed a real structured query with GPT-5.6 Sol verified before/after submission. Native Chrome invoked directly with `--headless --dump-dom`, without Playwright, returned `Just a moment...` and no editor using the same dedicated profile. Thus the observed headless failure is reproducible without Playwright; switching libraries alone has no demonstrated benefit. Puppeteer/Selenium were not installed or claimed tested.
+
+Research references:
+
+- [Chrome's unified headless mode](https://developer.chrome.com/docs/automation-and-testing/headless): modern Chrome shares headed/headless implementation; our installed Chrome 152 already uses this generation.
+- [Cloudflare supported browsers](https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/): automated production challenge solving is unsupported.
+- [Playwright CLI minimized-window request](https://github.com/microsoft/playwright-cli/issues/318): user report describing this practical alternative for ChatGPT; not a guarantee from maintainers.
+
 ```powershell
 node .\dist\cli.js login --channel chrome
 node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --headless --question "Use the required response structure and summarize 2 + 2."

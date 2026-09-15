@@ -32,6 +32,8 @@ server.registerTool(
       projectUrl: z.string().url().optional(),
       projectName: z.string().optional(),
       channel: z.string().optional(),
+      model: z.string().min(1).optional(),
+      headless: z.boolean().default(false),
       timeoutMs: z.number().positive().optional()
     }
   },
@@ -46,7 +48,7 @@ server.registerTool(
 
     const body =
       result.status === "done"
-        ? `job: ${result.jobId}\nresponse_path: ${result.responsePath}\n\n${result.response ?? ""}`
+        ? `job: ${result.jobId}\nmodel: ${result.verifiedModel ?? "browser default (not verified)"}\nresponse_path: ${result.responsePath}\n\n${result.response ?? ""}`
         : [
             `job: ${result.jobId}`,
             `prompt_path: ${path.join(jobsDir, `${job.id}.prompt.md`)}`,
@@ -79,15 +81,22 @@ async function createAdapter(
   adapter: AdapterName,
   options: {
     channel?: string;
+    model?: string;
+    headless?: boolean;
     timeoutMs?: number;
     projectUrl?: string;
     projectName?: string;
   }
 ): Promise<BridgeAdapter> {
-  if (adapter === "manual") return new ManualBridgeAdapter();
+  if (adapter === "manual") {
+    if (options.model || options.headless) throw new Error("model and headless require the playwright adapter.");
+    return new ManualBridgeAdapter();
+  }
   const config = await readConfig();
   return new PlaywrightBridgeAdapter({
     channel: options.channel,
+    model: options.model,
+    headless: options.headless,
     timeoutMs: options.timeoutMs,
     projectUrl: options.projectUrl ?? config.projectUrl,
     projectName: options.projectName ?? config.projectName

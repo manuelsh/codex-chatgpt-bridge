@@ -72,11 +72,16 @@ async function resolveProjectName(args: Args): Promise<string | undefined> {
 }
 
 async function createAdapter(args: Args): Promise<BridgeAdapter> {
+  if ("model" in args && !textArg(args, "model")?.trim()) throw new Error("--model requires an explicit non-empty UI label.");
   const adapter = adapterName(args);
-  if (adapter === "manual") return new ManualBridgeAdapter();
+  if (adapter === "manual") {
+    if (textArg(args, "model") || boolArg(args, "headless")) throw new Error("--model and --headless require --adapter playwright.");
+    return new ManualBridgeAdapter();
+  }
   return new PlaywrightBridgeAdapter({
     channel: textArg(args, "channel"),
     headless: boolArg(args, "headless"),
+    model: textArg(args, "model"),
     timeoutMs: numberArg(args, "timeout-ms", 180_000),
     projectUrl: await resolveProjectUrl(args),
     projectName: await resolveProjectName(args),
@@ -108,6 +113,7 @@ async function commandAsk(args: Args): Promise<void> {
   console.log(`job: ${result.jobId}`);
   console.log(`prompt: ${path.join(jobsDir, `${job.id}.prompt.md`)}`);
   if (result.status === "done") {
+    console.log(`model: ${result.verifiedModel ?? "browser default (not verified)"}`);
     console.log(`response: ${result.responsePath}`);
     return;
   }
@@ -217,6 +223,7 @@ async function commandDoctor(args: Args): Promise<void> {
 }
 
 function printHelp(): void {
+  console.log("Playwright ask options: --model <exact UI label> --headless (default: visible). Login always requires a visible browser.");
   console.log(`cgpt commands:
   login [--channel chrome|msedge] [--project-url <url>] [--timeout-ms <number>]
   project-set (--url <chatgpt-project-url>|--name <project-name>)

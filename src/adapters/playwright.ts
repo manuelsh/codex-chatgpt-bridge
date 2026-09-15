@@ -3,10 +3,12 @@ import { chromium, type BrowserContext, type Locator, type Page } from "playwrig
 import { browserProfileDir, ensureStateDirs, jobsDir, responsesDir, writeJson, writeText } from "../fs.js";
 import { formatDelegationResponse, parseDelegationResponse } from "../response.js";
 import type { BridgeAdapter, BridgeResult, Job } from "../types.js";
+import { verifyModel } from "./model.js";
 
 type PlaywrightOptions = {
   channel?: string;
   headless?: boolean;
+  model?: string;
   timeoutMs?: number;
   projectUrl?: string;
   projectName?: string;
@@ -25,8 +27,13 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
     const context = await launchChatGptContext(this.options);
     try {
       const page = await openChatGpt(context, this.options);
+      if (this.options.model) await verifyModel(page, this.options.model, true);
       await submitPrompt(page, job.prompt, this.options.timeoutMs);
       const response = await waitForLatestAssistantText(page, this.options.timeoutMs);
+      if (this.options.model) {
+        try { await verifyModel(page, this.options.model); }
+        catch (error) { throw new Error(`Request was already sent; do not retry automatically. ${error instanceof Error ? error.message : String(error)}`); }
+      }
       const parsed = parseDelegationResponse(response);
       const normalizedResponse = formatDelegationResponse(parsed);
       const responsePath = path.join(responsesDir, `${job.id}.md`);
@@ -36,6 +43,7 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
         jobId: job.id,
         status: "done",
         response: normalizedResponse,
+        verifiedModel: this.options.model,
         responsePath
       };
     } finally {
@@ -45,6 +53,7 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
 }
 
 export async function loginWithPlaywright(options: PlaywrightOptions = {}): Promise<void> {
+  if (options.headless) throw new Error("Login requires a visible browser. Remove --headless.");
   await ensureStateDirs();
   const context = await launchChatGptContext(options);
   try {
@@ -151,8 +160,7 @@ async function launchChatGptContext(options: PlaywrightOptions): Promise<Browser
     channel: options.channel ?? process.env.CGPT_BROWSER_CHANNEL ?? "chrome",
     headless: options.headless ?? false,
     timeout,
-    viewport: { width: 1280, height: 900 },
-    args: ["--disable-blink-features=AutomationControlled"]
+    viewport: { width: 1280, height: 900 }
   });
 }
 
@@ -160,7 +168,10 @@ async function openChatGpt(context: BrowserContext, options: PlaywrightOptions =
   const timeoutMs = options.timeoutMs ?? 120_000;
   const page = context.pages()[0] ?? (await context.newPage());
   await page.goto(options.projectUrl ?? chatGptUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-  await waitForPromptEditor(page, timeoutMs);
+  try { await waitForPromptEditor(page, timeoutMs); }
+  catch {
+    throw new Error(`BROWSER_NOT_READY: ChatGPT editor unavailable${options.headless ? " in headless mode" : ""}. Check login, verification or limits in visible Chrome. No prompt was sent.`);
+  }
   if (await hasLoginCallToAction(page)) {
     throw new Error("ChatGPT is not logged in. Run: node .\\dist\\cli.js login --channel chrome");
   }
@@ -316,8 +327,7 @@ async function waitForLatestAssistantText(page: Page, timeoutMs = 120_000): Prom
     await page.waitForTimeout(1_000);
   }
 
-  if (stableText) return stableText;
-  throw new Error("Timed out waiting for ChatGPT response text.");
+  throw new Error("RESPONSE_TIMEOUT: completion was not confirmed. Check the chat before retrying; the prompt may already have been sent.");
 }
 
 async function extractLatestResponseText(page: Page): Promise<string> {

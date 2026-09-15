@@ -1,5 +1,25 @@
 # codex-chatgpt-bridge
 
+Fork of [RPG-478/codex-chatgpt-bridge](https://github.com/RPG-478/codex-chatgpt-bridge), retaining its MIT license and attribution.
+
+## Fork options: model and headless
+
+```powershell
+node .\dist\cli.js login --channel chrome
+node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --headless --question "Use the required response structure and summarize 2 + 2."
+```
+
+- `--model` requests an **exact label** in the web model menu. No API aliases. Auto/Latest are rejected because they do not identify a fixed model. The current English model submenu is supported; other layouts can fail closed.
+- Selection is checked using the menu's `aria-checked` state before sending and after receiving. Unavailable, ambiguous or unverifiable models produce `MODEL_UNVERIFIABLE`, with no automatic substitution. This confirms the web selection, not an independently verified backend model identity. A post-send verification failure means the request may already have run; do not retry blindly.
+- Without `--model`, the browser default is used and explicitly reported as unverified.
+- `--headless` runs without a window; default is visible. Login remains interactive and rejects `--headless`. Both modes use the same dedicated profile. No automatic visible-mode fallback, session copying or automation-concealment flags.
+- MCP `chatgpt_delegate` also accepts optional `model` and `headless` (default false). Both options require the Playwright adapter. No new environment variables or config files.
+- Run one command at a time. If login, verification or limits block a run, use visible Chrome to resolve them manually. A response timeout is an error, even if partial text exists.
+- The bridge retains upstream's local prompt/response storage. Never commit `.cgpt` or the dedicated browser profile.
+- Tests require installed Chrome (or `CGPT_BROWSER_CHANNEL=msedge`) for the local model-selector fixture.
+
+Verified on 2026-09-15: a real Chrome run selected and checked `GPT-5.6 Sol` before and after a harmless structured query, and retrieved the response successfully. The same headless test timed out before the prompt editor became available; no prompt was sent. **Headless compatibility with ChatGPT is not verified in this environment.** Use visible mode for now. No challenge was bypassed and the cause of the unavailable editor was not established. The four local tests and TypeScript build passed. Other model labels, translated menus and Project-specific selectors remain unverified.
+
 [![Status](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](./package.json)

@@ -65,7 +65,7 @@ The goal is to reduce Codex context usage for compact second opinions without gi
 - Invalid ChatGPT response schemas currently fail fast; automatic repair retry is not implemented yet.
 - Context packets are not automatically redacted yet. Keep delegated context small and exclude secrets manually.
 - There is no Chrome extension adapter yet; Playwright is the only automated browser adapter.
-- Model selection depends on the web menu and currently supports its English model labels. It verifies the UI selection, not the backend model identity.
+- Model selection depends on the web menu and requires the exact visible model label. Labels and available options vary by account and UI locale. It verifies the UI selection, not the backend model identity.
 - Headless mode may be blocked by ChatGPT verification. Minimized Chrome has been tested on Windows; other platforms and browser channels may behave differently.
 
 ## Install
@@ -175,7 +175,7 @@ The bridge checks the selected menu item before submitting and again after recei
 
 You can use `--model Latest` to select ChatGPT's latest model option. It is a dynamic label, not a fixed model version. The result reports both the requested menu option (`model: Latest`) and the selector's display text (for example, `model_display: 6 Pro`). The display text must remain the same before and after the request. This records the UI state for that run; it does not establish a permanent mapping or independently identify the backend model.
 
-For Latest, `--power` selects one of the five levels exposed by the current English interface:
+For a model that exposes the Power control, `--power` selects a one-based level from lowest to highest. The number of levels and their labels vary by account and UI locale; the requested level must exist in the current control. A five-level English interface uses:
 
 | Value | Level |
 | --- | --- |
@@ -186,10 +186,10 @@ For Latest, `--power` selects one of the five levels exposed by the current Engl
 | 5 | Pro |
 
 ```powershell
-node .\dist\cli.js ask --adapter playwright --model Latest --power 3 --question "Review this plan."
+node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --power 3 --question "Review this plan."
 ```
 
-The bridge checks the Power control's value and accessible description before and after submission. An unavailable level or inconsistent UI produces `POWER_UNVERIFIABLE`. `--power` requires `--model Latest`; omit it to preserve the current setting. Labels and availability can change with the account or web interface. Choosing a level changes the dedicated profile's current Power setting.
+The bridge checks the Power control's value and accessible description before and after submission. An unavailable level or inconsistent UI produces `POWER_UNVERIFIABLE`. `--power` requires an explicit `--model`; omit Power to preserve the current setting. Labels and availability can change with the account or web interface. Choosing a level changes the dedicated profile's current Power setting.
 
 Without `--model`, the browser's default selection is used and reported as unverified. Available labels depend on your account and the current ChatGPT interface.
 
@@ -285,7 +285,7 @@ The Playwright adapter also accepts these optional fields in `chatgpt_delegate`:
 | Field | Default | Purpose |
 | --- | --- | --- |
 | `model` | Browser selection, unverified | Exact web-menu label to select and verify |
-| `power` | Current setting, unchanged | Integer 1–5; requires `model: "Latest"` |
+| `power` | Current setting, unchanged | Integer 1–5; requires an explicit `model` |
 | `headless` | `false` | Request experimental headless operation |
 | `minimized` | `true` unless headless | Set `false` for a visible browser |
 

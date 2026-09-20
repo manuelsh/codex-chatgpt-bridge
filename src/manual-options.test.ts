@@ -28,6 +28,14 @@ test("CLI rejects invalid boolean browser option values", async () => {
   }
 });
 
+test("CLI requires an explicit model when Power is requested", async () => {
+  const cli = fileURLToPath(new URL("./cli.js", import.meta.url));
+  await assert.rejects(
+    promisify(execFile)(process.execPath, [cli, "ask", "--adapter", "playwright", "--power", "3", "--question", "test"]),
+    (error: unknown) => String((error as { stderr?: string }).stderr).includes("--power requires an explicit --model")
+  );
+});
+
 test("MCP rejects explicit false browser options for manual and default adapters", async () => {
   const client = new Client({ name: "manual-options-test", version: "1.0.0" });
   const transport = new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL("./mcp.js", import.meta.url))] });

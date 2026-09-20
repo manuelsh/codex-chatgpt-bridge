@@ -11,12 +11,15 @@ export async function verifyModel(page: Page, model: string, select = false): Pr
     await picker.first().waitFor({ state: "visible", timeout: 15_000 });
     if (await picker.count() !== 1) throw new Error("Model selector is ambiguous.");
     await picker.click();
+    const choice = page.getByRole("menuitemradio", { name: model, exact: true });
     const openModels = async () => {
-      const submenu = page.getByRole("menuitem", {name: "Select model", exact: true});
-      if (await submenu.isVisible()) await submenu.click();
+      if (await choice.isVisible().catch(() => false)) return;
+      const menu = page.getByRole("menu").filter({ visible: true }).first();
+      const submenu = menu.locator('[role="menuitem"]:not(:has([role="slider"]))').filter({ visible: true });
+      if (await submenu.count() !== 1) throw new Error("Model submenu is unavailable or ambiguous.");
+      await submenu.click();
     };
     await openModels();
-    const choice = page.getByRole("menuitemradio", { name: model, exact: true });
     await page.getByRole("menu").first().waitFor({ state: "visible", timeout: 5_000 });
     if (await choice.count() !== 1 || !await choice.isVisible() || !await choice.isEnabled()) {
       throw new Error(`Model ${JSON.stringify(model)} is unavailable as an exact selectable UI label.`);

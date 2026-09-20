@@ -6,24 +6,38 @@ export async function verifyPower(page: Page, level: number, select = false): Pr
     .or(page.getByTestId("model-switcher-dropdown-button")).filter({ visible: true });
   try {
     await picker.click({ timeout: 15000 });
-    const control = page.getByRole("menuitem", { name: "Power", exact: true });
+    const menu = page.getByRole("menu").filter({ visible: true }).first();
+    const control = menu.locator('[role="menuitem"]:has([role="slider"])').filter({ visible: true });
     await control.waitFor({ state: "visible", timeout: 5000 });
+    if (await control.count() !== 1) throw new Error("Power control is unavailable or ambiguous.");
     const read = async () => {
       const state = await control.evaluate(node => {
         const slider = node.querySelector('[role="slider"]');
         const description = (node.getAttribute("aria-describedby") ?? "").split(" ")
           .map(id => document.getElementById(id)?.textContent ?? "").join(" ");
-        return { min: slider?.getAttribute("aria-valuemin"), max: slider?.getAttribute("aria-valuemax"), value: slider?.getAttribute("aria-valuenow"), description };
+        return {
+          min: slider?.getAttribute("aria-valuemin"),
+          max: slider?.getAttribute("aria-valuemax"),
+          value: slider?.getAttribute("aria-valuenow"),
+          valueText: slider?.getAttribute("aria-valuetext"),
+          description
+        };
       });
-      const match = state.description.match(/^(.+?), ([1-5]) of 5\./);
-      if (state.min !== "0" || state.max !== "4" || !match || state.value !== String(Number(match[2]) - 1)) {
-        throw new Error("The interface does not expose a consistent five-level Power control.");
+      const min = Number(state.min);
+      const max = Number(state.max);
+      const value = Number(state.value);
+      if (!Number.isInteger(min) || !Number.isInteger(max) || !Number.isInteger(value) || min !== 0 || max < min || value < min || value > max) {
+        throw new Error("The interface does not expose a consistent Power control.");
       }
-      return { level: Number(match[2]), label: match[1] };
+      const description = (state.valueText || state.description).trim();
+      const label = description.split(/[,、]/, 1)[0]?.trim();
+      if (!label) throw new Error("The Power control does not expose an accessible level label.");
+      return { level: value + 1, label, maxLevel: max + 1 };
     };
     let current = await read();
+    if (level > current.maxLevel) throw new Error(`Requested level ${level}, but this interface exposes ${current.maxLevel} level(s).`);
     if (select) {
-      for (let step = 0; current.level !== level && step < 4; step++) {
+      for (let step = 0; current.level !== level && step < current.maxLevel - 1; step++) {
         const previous = current.level;
         await control.press(current.level < level ? "ArrowRight" : "ArrowLeft");
         current = await read();
@@ -34,7 +48,7 @@ export async function verifyPower(page: Page, level: number, select = false): Pr
       current = await read();
     }
     if (current.level !== level) throw new Error(`Requested level ${level}, but the interface reports ${current.level}.`);
-    return current;
+    return { level: current.level, label: current.label };
   } catch (error) {
     throw new Error(`POWER_UNVERIFIABLE: ${error instanceof Error ? error.message : String(error)}`);
   } finally { await page.keyboard.press("Escape").catch(() => undefined); }

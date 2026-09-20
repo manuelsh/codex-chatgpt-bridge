@@ -25,8 +25,8 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
   constructor(private readonly options: PlaywrightOptions = {}) {}
 
   async submit(job: Job): Promise<BridgeResult> {
-    if (this.options.power !== undefined && (this.options.model !== "Latest" || !Number.isInteger(this.options.power) || this.options.power < 1 || this.options.power > 5)) {
-      throw new Error("Power requires --model Latest and an integer from 1 to 5.");
+    if (this.options.power !== undefined && (!this.options.model || !Number.isInteger(this.options.power) || this.options.power < 1 || this.options.power > 5)) {
+      throw new Error("Power requires an explicit model and an integer from 1 to 5.");
     }
     await ensureStateDirs();
     await persistJob(job);
@@ -36,7 +36,7 @@ export class PlaywrightBridgeAdapter implements BridgeAdapter {
       const page = await openChatGpt(context, this.options);
       let selection = this.options.model ? await verifyModel(page, this.options.model, true) : undefined;
       const power = this.options.power !== undefined ? await verifyPower(page, this.options.power, true) : undefined;
-      if (power) selection = await verifyModel(page, "Latest");
+      if (power && this.options.model) selection = await verifyModel(page, this.options.model);
       await submitPrompt(page, job.prompt, this.options.timeoutMs);
       const response = await waitForLatestAssistantText(page, this.options.timeoutMs);
       if (this.options.model) {

@@ -33,7 +33,7 @@ server.registerTool(
       projectName: z.string().optional(),
       channel: z.string().optional(),
       model: z.string().min(1).optional(),
-      power: z.number().int().min(1).max(5).optional().describe("Latest only: 1 Instant, 2 Medium, 3 High, 4 Extra High, 5 Pro."),
+      power: z.number().int().min(1).max(5).optional().describe("Requires model: available Power level from lowest to highest; the current UI may expose fewer than five."),
       headless: z.boolean().optional().describe("Defaults to false. Experimental headless is currently blocked by ChatGPT verification."),
       minimized: z.boolean().optional().describe("Defaults to true unless headless is true. Set false for a visible window. Do not combine true with headless true."),
       timeoutMs: z.number().positive().optional()

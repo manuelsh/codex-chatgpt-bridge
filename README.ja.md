@@ -65,7 +65,7 @@ Codex はローカルマシン上での実行に強いです。ファイルを�
 - ChatGPT のレスポンス schema が無効な場合、現状は即失敗します。自動 repair retry は未実装です。
 - context packet の自動 redaction はまだありません。委任する文脈は小さく保ち、secret は手動で除外してください。
 - Chrome extension adapter はまだありません。自動ブラウザ adapter は Playwright のみです。
-- モデル選択は Web メニューに依存し、現在は英語のモデル名にのみ対応します。確認するのは UI 上の選択であり、バックエンドのモデル識別情報ではありません。
+- モデル選択は Web メニューに依存し、画面に表示される正確なモデル名を指定する必要があります。モデル名と選択肢はアカウントや UI locale によって異なります。確認するのは UI 上の選択であり、バックエンドのモデル識別情報ではありません。
 - headless mode は ChatGPT の検証画面に阻止される場合があります。最小化した Chrome は Windows で検証済みですが、ほかの platform や browser channel は未検証です。
 
 ## インストール
@@ -175,7 +175,7 @@ bridge は送信前とレスポンス受信後に選択中のモデルを確認�
 
 `--model Latest` を使うと、ChatGPT の最新モデルオプションを選択できます。これは固定のモデルバージョンではなく、動的なラベルです。結果には要求したメニュー項目（`model: Latest`）と、その実行時に表示されていたラベル（例: `model_display: 6 Pro`）の両方が記録されます。送信前後で表示ラベルが同一であることも確認しますが、バックエンドのモデルを独立して識別するものではありません。
 
-Latest では、現在の英語 UI が提供する5段階の Power を `--power` で選択できます。
+Power control を持つモデルでは、Power を低い順に1から数えた値で `--power` に指定します。段階数とラベルはアカウントや UI locale によって異なるため、現在の control に存在する値を指定してください。英語UIが5段階を表示する場合の対応は次のとおりです。
 
 | 値 | Level |
 | --- | --- |
@@ -186,10 +186,10 @@ Latest では、現在の英語 UI が提供する5段階の Power を `--power`
 | 5 | Pro |
 
 ```powershell
-node .\dist\cli.js ask --adapter playwright --model Latest --power 3 --question "Review this plan."
+node .\dist\cli.js ask --adapter playwright --model "GPT-5.6 Sol" --power 3 --question "Review this plan."
 ```
 
-bridge は送信前後に Power control の値と説明を確認します。指定した level を利用できない場合や UI の状態が矛盾する場合は `POWER_UNVERIFIABLE` で失敗します。`--power` には `--model Latest` が必要です。省略すると現在の設定を維持します。利用できるラベルや level は、アカウントや Web UI の変更によって変わる可能性があります。level を選ぶと、専用プロファイルの現在の Power 設定も変わります。
+bridge は送信前後に Power control の値と説明を確認します。指定した level を利用できない場合や UI の状態が矛盾する場合は `POWER_UNVERIFIABLE` で失敗します。`--power` には明示的な `--model` が必要です。Power を省略すると現在の設定を維持します。利用できるラベルや level は、アカウントや Web UI の変更によって変わる可能性があります。level を選ぶと、専用プロファイルの現在の Power 設定も変わります。
 
 `--model` を省略した場合は、ブラウザの現在の選択を未検証のまま使用します。利用できるモデル名は、アカウントと現在の ChatGPT UI に依存します。
 
@@ -285,7 +285,7 @@ Playwright adapter では、`chatgpt_delegate` に次の任意 field も指定�
 | Field | Default | 用途 |
 | --- | --- | --- |
 | `model` | ブラウザの選択、未検証 | 選択・検証する Web メニュー上の正確なモデル名 |
-| `power` | 現在の設定を維持 | 1〜5の整数、`model: "Latest"` の場合のみ使用可能 |
+| `power` | 現在の設定を維持 | 1〜5の整数、明示的な `model` が必要 |
 | `headless` | `false` | ウィンドウなしの実験的な実行を要求 |
 | `minimized` | headless でなければ `true` | `false` でブラウザウィンドウを表示 |
 

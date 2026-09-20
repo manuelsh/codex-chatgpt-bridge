@@ -81,7 +81,7 @@ async function resolveProjectName(args: Args): Promise<string | undefined> {
 async function createAdapter(args: Args): Promise<BridgeAdapter> {
   if ("model" in args && !textArg(args, "model")?.trim()) throw new Error("--model requires an explicit non-empty UI label.");
   const power = "power" in args ? Number(textArg(args, "power")) : undefined;
-  if (power !== undefined && (textArg(args, "model") !== "Latest" || !Number.isInteger(power) || power < 1 || power > 5)) throw new Error("--power requires --model Latest and an integer from 1 to 5.");
+  if (power !== undefined && (!textArg(args, "model") || !Number.isInteger(power) || power < 1 || power > 5)) throw new Error("--power requires an explicit --model and an integer from 1 to 5.");
   const adapter = adapterName(args);
   const headless = browserBoolArg(args, "headless");
   const minimized = "minimized" in args ? browserBoolArg(args, "minimized") : undefined;
@@ -239,7 +239,7 @@ async function commandDoctor(args: Args): Promise<void> {
 }
 
 function printHelp(): void {
-  console.log("ask --model Latest [--power 1..5]: 1 Instant, 2 Medium, 3 High, 4 Extra High, 5 Pro. Omit power to keep the current setting.");
+  console.log("ask --model <visible-label> [--power 1..5]: select an available Power level from lowest to highest. Availability and labels depend on the current UI.");
   console.log("Playwright defaults to normal Chrome minimized. Use ask --minimized false for a visible window or --headless true for experimental headless. Login always uses a visible browser.");
   console.log(`cgpt commands:
   login [--channel chrome|msedge] [--project-url <url>] [--timeout-ms <number>]

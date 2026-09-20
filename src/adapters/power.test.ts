@@ -22,3 +22,20 @@ test("Power selects and verifies all five levels, rejecting invalid, mismatched 
     await assert.rejects(verifyPower(page, 1, true), /Power did not change/);
   } finally { await browser.close(); }
 });
+
+test("Power supports a localized three-level control", async () => {
+  const browser = await chromium.launch({ channel: process.env.CGPT_BROWSER_CHANNEL ?? "chrome", headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<button class="__composer-pill" aria-haspopup="menu" onclick="document.querySelector('[role=menu]').hidden=false">高</button>
+      <div role="menu" hidden><div role="menuitem" tabindex="0" aria-label="パワー" aria-describedby="description"
+      onkeydown="if(event.key==='ArrowLeft'||event.key==='ArrowRight'){const s=this.querySelector('[role=slider]');const v=Math.max(0,Math.min(2,Number(s.getAttribute('aria-valuenow'))+(event.key==='ArrowRight'?1:-1)));s.setAttribute('aria-valuenow',String(v));document.getElementById('description').textContent=['低','中','高'][v]+'、3件中'+(v+1)+'件目。';}">
+      パワー<span role="slider" aria-valuemin="0" aria-valuemax="2" aria-valuenow="2"></span></div><span id="description">高、3件中3件目。</span></div>`);
+    const labels = ["低", "中", "高"];
+    for (let level = 1; level <= 3; level++) {
+      assert.deepEqual(await verifyPower(page, level, true), { level, label: labels[level - 1] });
+      assert.deepEqual(await verifyPower(page, level), { level, label: labels[level - 1] });
+    }
+    await assert.rejects(verifyPower(page, 4, true), /exposes 3 level/);
+  } finally { await browser.close(); }
+});

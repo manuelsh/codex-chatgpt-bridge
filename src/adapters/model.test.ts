@@ -32,3 +32,19 @@ test("Latest is selected and verified as a dynamic menu label, with its displaye
     await assert.rejects(verifyModel(page, "Auto", true), /MODEL_UNVERIFIABLE/);
   } finally { await browser.close(); }
 });
+
+test("model UI: opens a localized model submenu by structure", async () => {
+  const browser = await chromium.launch({channel: process.env.CGPT_BROWSER_CHANNEL ?? "chrome", headless: true});
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<button class="__composer-pill" aria-haspopup="menu" onclick="document.querySelector('[role=menu]').hidden=false">高</button>
+      <div role="menu" hidden>
+        <div role="menuitem" aria-label="モデルを選択" onclick="document.getElementById('models').hidden=false">高</div>
+        <div role="menuitem" aria-label="パワー"><span role="slider" aria-valuemin="0" aria-valuemax="2" aria-valuenow="2"></span></div>
+        <div id="models" hidden><button role="menuitemradio" aria-checked="false"
+        onclick="this.setAttribute('aria-checked','true');this.parentElement.hidden=true">GPT-5.6 Sol</button></div>
+      </div>`);
+    assert.deepEqual(await verifyModel(page, "GPT-5.6 Sol", true), { model: "GPT-5.6 Sol", displayLabel: "高" });
+    assert.deepEqual(await verifyModel(page, "GPT-5.6 Sol"), { model: "GPT-5.6 Sol", displayLabel: "高" });
+  } finally { await browser.close(); }
+});

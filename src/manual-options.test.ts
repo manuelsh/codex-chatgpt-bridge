@@ -18,6 +18,16 @@ test("CLI rejects explicit false browser options for manual and default adapters
   }
 });
 
+test("CLI rejects invalid boolean browser option values", async () => {
+  const cli = fileURLToPath(new URL("./cli.js", import.meta.url));
+  for (const option of ["headless", "minimized"]) {
+    await assert.rejects(
+      promisify(execFile)(process.execPath, [cli, "ask", "--adapter", "playwright", `--${option}`, "invalid", "--question", "test"]),
+      (error: unknown) => String((error as { stderr?: string }).stderr).includes(`--${option} expects true or false.`)
+    );
+  }
+});
+
 test("MCP rejects explicit false browser options for manual and default adapters", async () => {
   const client = new Client({ name: "manual-options-test", version: "1.0.0" });
   const transport = new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL("./mcp.js", import.meta.url))] });

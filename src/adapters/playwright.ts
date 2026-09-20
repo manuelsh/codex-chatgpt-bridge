@@ -203,6 +203,12 @@ async function openChatGpt(context: BrowserContext, options: PlaywrightOptions =
   checkNavigation(navigation?.status(), await page.title(), options.headless ?? false);
   try { await waitForPromptEditor(page, timeoutMs); }
   catch {
+    // Verification and login screens can appear after the initial navigation
+    // response, so classify the final page state before returning a generic error.
+    checkNavigation(navigation?.status(), await page.title().catch(() => ""), options.headless ?? false);
+    if (await hasLoginCallToAction(page)) {
+      throw new Error("ChatGPT is not logged in. Run: node .\\dist\\cli.js login --channel chrome");
+    }
     throw new Error(`BROWSER_NOT_READY: ChatGPT editor unavailable${options.headless ? " in headless mode" : ""}. Check login, verification or limits in visible Chrome. No prompt was sent.`);
   }
   if (await hasLoginCallToAction(page)) {

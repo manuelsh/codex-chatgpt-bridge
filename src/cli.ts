@@ -47,11 +47,11 @@ function boolArg(args: Args, name: string): boolean {
   return args[name] === true || args[name] === "true";
 }
 
-function headlessArg(args: Args): boolean {
-  if (!("headless" in args)) return false;
-  if (args.headless === true || args.headless === "true") return true;
-  if (args.headless === "false") return false;
-  throw new Error("--headless expects true or false.");
+function browserBoolArg(args: Args, name: "headless" | "minimized"): boolean {
+  if (!(name in args)) return false;
+  if (args[name] === true || args[name] === "true") return true;
+  if (args[name] === "false") return false;
+  throw new Error(`--${name} expects true or false.`);
 }
 
 function numberArg(args: Args, name: string, fallback: number): number {
@@ -83,15 +83,16 @@ async function createAdapter(args: Args): Promise<BridgeAdapter> {
   const power = "power" in args ? Number(textArg(args, "power")) : undefined;
   if (power !== undefined && (textArg(args, "model") !== "Latest" || !Number.isInteger(power) || power < 1 || power > 5)) throw new Error("--power requires --model Latest and an integer from 1 to 5.");
   const adapter = adapterName(args);
-  const minimized = "minimized" in args ? boolArg(args, "minimized") : undefined;
-  if (minimized && boolArg(args, "headless")) throw new Error("Use --minimized without --headless true.");
+  const headless = browserBoolArg(args, "headless");
+  const minimized = "minimized" in args ? browserBoolArg(args, "minimized") : undefined;
+  if (minimized && headless) throw new Error("Use --minimized without --headless true.");
   if (adapter === "manual") {
     if ("model" in args || "power" in args || "headless" in args || "minimized" in args) throw new Error("Browser options require --adapter playwright.");
     return new ManualBridgeAdapter();
   }
   return new PlaywrightBridgeAdapter({
     channel: textArg(args, "channel"),
-    headless: minimized ? false : headlessArg(args),
+    headless: minimized ? false : headless,
     minimized,
     model: textArg(args, "model"),
     power,
@@ -215,7 +216,7 @@ async function commandDoctor(args: Args): Promise<void> {
     try {
       const result = await checkChatGptReady({
         channel: textArg(args, "channel"),
-        headless: headlessArg(args),
+        headless: browserBoolArg(args, "headless"),
         timeoutMs: numberArg(args, "timeout-ms", 120_000),
         projectUrl: await resolveProjectUrl(args),
         projectName: await resolveProjectName(args)
@@ -258,7 +259,7 @@ async function main(): Promise<void> {
   if (command === "login") {
     return loginWithPlaywright({
       channel: textArg(args, "channel"),
-      headless: boolArg(args, "headless"),
+      headless: browserBoolArg(args, "headless"),
       timeoutMs: numberArg(args, "timeout-ms", 10 * 60 * 1000),
       projectUrl: await resolveProjectUrl(args),
       projectName: await resolveProjectName(args)
@@ -294,7 +295,7 @@ async function main(): Promise<void> {
   if (command === "debug-page") {
     return debugChatGptPage({
       channel: textArg(args, "channel"),
-      headless: headlessArg(args),
+      headless: browserBoolArg(args, "headless"),
       timeoutMs: numberArg(args, "timeout-ms", 120_000),
       projectUrl: await resolveProjectUrl(args),
       projectName: await resolveProjectName(args),
@@ -304,7 +305,7 @@ async function main(): Promise<void> {
   if (command === "debug-submit") {
     return debugSubmitPrompt(textArg(args, "text") ?? "hello", {
       channel: textArg(args, "channel"),
-      headless: headlessArg(args),
+      headless: browserBoolArg(args, "headless"),
       timeoutMs: numberArg(args, "timeout-ms", 120_000),
       unsafeDebug: boolArg(args, "unsafe-debug")
     });
